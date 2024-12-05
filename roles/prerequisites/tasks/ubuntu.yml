@@ -1,0 +1,90 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Remove swap from fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Install essential packages
+  ansible.builtin.apt:
+    name: "{{ required_packages }}"
+    state: present
+
+- name: Install containerd
+  ansible.builtin.apt:
+    name: containerd.io
+    state: present
+    update_cache: true
+
+- name: Configure containerd
+  ansible.builtin.shell: |
+    containerd config default > /etc/containerd/config.toml
+  args:
+    creates: /etc/containerd/config.toml
+  notify: restart containerd
+
+- name: Update containerd configuration
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+  notify: restart containerd
+
+- name: Configure kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k8s.conf
+    content: |
+      overlay
+      br_netfilter
+      ip_tables
+      ip6_tables
+      nf_conntrack
+    mode: '0644'
+
+- name: Load kernel modules
+  ansible.builtin.command: "modprobe {{ item }}"
+  with_items:
+    - overlay
+    - br_netfilter
+    - ip_tables
+    - ip6_tables
+    - nf_conntrack
+  changed_when: false
+
+- name: Configure sysctl parameters
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/k8s.conf
+  with_items:
+    - { name: 'net.bridge.bridge-nf-call-iptables', value: '1' }
+    - { name: 'net.bridge.bridge-nf-call-ip6tables', value: '1' }
+    - { name: 'net.ipv4.ip_forward', value: '1' }
+    - { name: 'net.ipv4.conf.all.rp_filter', value: '1' }
+    - { name: 'net.ipv6.conf.all.forwarding', value: '1' }
+
+- name: Add Kubernetes repository
+  block:
+    - name: Add Kubernetes apt keyring
+      ansible.builtin.get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes.key
+        mode: '0644'
+        force: true
+
+    - name: Add Kubernetes repository
+      ansible.builtin.apt_repository:
+        repo: deb [signed-by=/etc/apt/keyrings/kubernetes.key] https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/ /
+        state: present
+        filename: kubernetes

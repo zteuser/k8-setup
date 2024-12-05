@@ -1,0 +1,38 @@
+---
+- name: Verify system configuration
+  block:
+    - name: Check kernel modules
+      ansible.builtin.command: lsmod
+      register: kernel_modules
+      changed_when: false
+
+    - name: Verify kernel modules
+      ansible.builtin.assert:
+        that: "item in kernel_modules.stdout"
+        fail_msg: "Kernel module {{ item }} is not loaded"
+      loop: "{{ verification_checks.kernel_modules }}"
+
+    - name: Check sysctl parameters
+      ansible.builtin.command: sysctl -a
+      register: sysctl_settings
+      changed_when: false
+
+    - name: Verify sysctl parameters
+      ansible.builtin.assert:
+        that: "item in sysctl_settings.stdout"
+        fail_msg: "Sysctl parameter {{ item }} is not set correctly"
+      loop: "{{ verification_checks.sysctl_params }}"
+
+    - name: Verify services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: started
+        enabled: true
+      loop: "{{ verification_checks.services }}"
+
+    - name: Collect system information
+      ansible.builtin.include_tasks: collect_info.yml
+
+- name: Include network verification
+  ansible.builtin.include_tasks: network_checks.yml
+  when: inventory_hostname != groups['master'][0]

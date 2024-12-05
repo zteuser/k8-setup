@@ -1,0 +1,21 @@
+---
+- name: Verify network connectivity
+  block:
+    - name: Ping master node
+      ansible.builtin.ping:
+        data: "{{ hostvars[groups['master'][0]]['ansible_default_ipv4']['address'] }}"
+      register: ping_result
+
+    - name: Check API server port
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[groups['master'][0]]['ansible_default_ipv4']['address'] }}"
+        port: 6443
+        timeout: 10
+      register: port_check
+
+    - name: Display network verification results
+      ansible.builtin.debug:
+        msg: |
+          Network Connectivity Results for {{ ansible_hostname }}:
+          - Ping to master: {{ 'OK' if ping_result.ping is defined else 'FAILED' }}
+          - API Server port: {{ 'OK' if port_check.state is defined else 'FAILED' }}

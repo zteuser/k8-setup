@@ -1,0 +1,7 @@
+---
+- name: Apply Kubernetes Prerequisites and Verification
+  hosts: all
+  become: true
+  roles:
+    - role: prerequisites
+    - role: verification

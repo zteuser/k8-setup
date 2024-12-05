@@ -1,0 +1,24 @@
+---
+kubernetes_version: "1.28"
+pod_network_cidr: "192.168.0.0/16"
+virtualbox_version: "7.0"
+ubuntu_vm_name: "k8s-worker-vm"
+ubuntu_vm_memory: "4096"
+ubuntu_vm_cpus: "2"
+ubuntu_vm_disk_size: "20000"
+required_packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - python3
+  - python3-pip
+  - net-tools
+  - ipset
+  - ipvsadm
+  - nfs-common
+  - iptables
+  - arptables
+  - ebtables

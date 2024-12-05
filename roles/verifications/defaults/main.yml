@@ -1,0 +1,11 @@
+---
+verifications_checks:
+  kernel_modules:
+    - br_netfilter
+    - overlay
+    - ip_tables
+  sysctl_params:
+    - net.bridge.bridge-nf-call-iptables
+    - net.ipv4.ip_forward
+  services:
+    - containerd
